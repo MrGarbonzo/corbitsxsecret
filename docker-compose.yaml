@@ -1,0 +1,17 @@
+services:
+  secret-ai-gateway:
+    image: ghcr.io/mrgarbonzo/corbitsxsecret:latest
+    ports:
+      - "21434:21434"
+    restart: unless-stopped
+    environment:
+      - SECRETAI_BASE_URL
+      - SECRET_AI_API_KEY
+      - PAYMENT_RECEIVE_ADDRESS
+      - PORT=21434
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:21434/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
