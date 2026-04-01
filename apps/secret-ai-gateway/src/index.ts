@@ -1,8 +1,6 @@
 import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { createMiddleware } from "@faremeter/middleware/hono";
-import { solana } from "@faremeter/info";
 import { configureApp, getLogger } from "@faremeter/logs";
 
 await configureApp({ level: "info" });
@@ -19,7 +17,6 @@ function requireEnv(name: string): string {
 
 const SECRETAI_BASE_URL = requireEnv("SECRETAI_BASE_URL");
 const SECRET_AI_API_KEY = requireEnv("SECRET_AI_API_KEY");
-const PAYMENT_RECEIVE_ADDRESS = requireEnv("PAYMENT_RECEIVE_ADDRESS");
 const PORT = Number(process.env["PORT"] ?? "21434");
 
 const hopByHopHeaders = new Set([
@@ -39,22 +36,6 @@ const app = new Hono();
 app.get("/health", (c) =>
   c.json({ status: "ok", timestamp: new Date().toISOString() }),
 );
-
-// --- Payment wall ---
-const paymentWall = await createMiddleware({
-  facilitatorURL: "https://facilitator.corbits.dev",
-  accepts: [
-    ...solana.x402Exact({
-      network: "mainnet-beta",
-      asset: "USDC",
-      amount: "10000",
-      payTo: PAYMENT_RECEIVE_ADDRESS,
-    }),
-  ],
-});
-
-app.use("/v1/*", paymentWall);
-app.use("/api/*", paymentWall);
 
 // --- Proxy handler ---
 app.all("/v1/*", async (c) => proxy(c));

@@ -14,15 +14,37 @@ if (!privateKey) {
 await payer.addLocalWallet(privateKey);
 logger.info("Wallet loaded");
 
-const targetUrl = process.env["TARGET_URL"] ?? "https://helius.api.corbits.dev";
+const targetUrl =
+  process.env["TARGET_URL"] ??
+  "https://peach-camel.vm.scrtlabs.com/v1/chat/completions";
 logger.info(`Fetching ${targetUrl}`);
 
-const response = await payer.fetch(targetUrl);
-const body = await response.text();
+try {
+  const response = await payer.fetch(targetUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "llama3.3:70b",
+      messages: [{ role: "user", content: "Say hello in one sentence." }],
+    }),
+  });
+  const body = await response.text();
 
-logger.info("Response received", {
-  status: response.status,
-  statusText: response.statusText,
-  bodyLength: body.length,
-});
-logger.debug("Response body", { body });
+  logger.info("Response received", {
+    status: response.status,
+    statusText: response.statusText,
+    bodyLength: body.length,
+  });
+  logger.debug("Response body", { body });
+} catch (err: unknown) {
+  const e = err as Error & { response?: Response };
+  logger.fatal("Payment failed", { message: e.message });
+  if (e.response) {
+    const text = await e.response.text().catch(() => "(unreadable)");
+    logger.fatal("Response details", {
+      status: e.response.status,
+      headers: Object.fromEntries(e.response.headers.entries()),
+      body: text,
+    });
+  }
+}
