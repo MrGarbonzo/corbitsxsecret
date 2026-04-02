@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secret AI &middot; x402 Chat Demo</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+        background: #0a0a0f;
+        color: #e0e0e0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 20px 24px 12px;
+        border-bottom: 1px solid #1a1a2e;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      header h1 {
+        font-size: 1.4rem;
+        color: #fff;
+        letter-spacing: -0.02em;
+      }
+
+      header .subtitle {
+        font-size: 0.75rem;
+        color: #666;
+        margin-top: 4px;
+      }
+
+      .connect-btn {
+        background: #7c3aed;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+      }
+
+      .connect-btn:hover {
+        background: #6d28d9;
+      }
+
+      .connect-btn.connected {
+        background: #1a1a2e;
+        border: 1px solid #333;
+        cursor: default;
+      }
+
+      .wallet-panel {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 24px;
+        background: #0d0d18;
+        border-bottom: 1px solid #1a1a2e;
+        font-size: 0.8rem;
+      }
+
+      .wallet-panel .address {
+        color: #888;
+        font-family: monospace;
+      }
+
+      .wallet-panel .balance {
+        color: #4ade80;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: color 0.3s;
+      }
+
+      .wallet-panel .balance.flash {
+        color: #f87171;
+      }
+
+      .wallet-panel .label {
+        color: #555;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .wallet-panel .network-badge {
+        font-size: 0.65rem;
+        color: #8b5cf6;
+        background: #1a1030;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-left: auto;
+      }
+
+      .wallet-panel.hidden {
+        display: none;
+      }
+
+      .chat-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .msg {
+        max-width: 85%;
+        line-height: 1.5;
+        font-size: 0.9rem;
+      }
+
+      .msg.user {
+        align-self: flex-end;
+        background: #1e1e3a;
+        padding: 10px 14px;
+        border-radius: 12px 12px 2px 12px;
+        color: #c8c8ff;
+      }
+
+      .msg.assistant {
+        align-self: flex-start;
+      }
+
+      .msg.assistant .content {
+        background: #111122;
+        padding: 10px 14px;
+        border-radius: 12px 12px 12px 2px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .msg.assistant .badge {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 0.65rem;
+        color: #4ade80;
+        background: #0f2f1a;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+
+      .thinking {
+        align-self: flex-start;
+        color: #555;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .thinking .dots span {
+        animation: blink 1.4s infinite both;
+        font-size: 1.2rem;
+      }
+      .thinking .dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .thinking .dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes blink {
+        0%,
+        80%,
+        100% {
+          opacity: 0.2;
+        }
+        40% {
+          opacity: 1;
+        }
+      }
+
+      .input-bar {
+        display: flex;
+        gap: 8px;
+        padding: 16px 24px;
+        border-top: 1px solid #1a1a2e;
+        background: #0a0a0f;
+      }
+
+      .input-bar input {
+        flex: 1;
+        background: #111122;
+        border: 1px solid #222244;
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #e0e0e0;
+        font-size: 0.9rem;
+        outline: none;
+      }
+
+      .input-bar input:focus {
+        border-color: #4444aa;
+      }
+
+      .input-bar input:disabled {
+        opacity: 0.5;
+      }
+
+      .input-bar button {
+        background: #2222aa;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .input-bar button:hover {
+        background: #3333cc;
+      }
+      .input-bar button:disabled {
+        background: #222;
+        color: #555;
+        cursor: not-allowed;
+      }
+
+      .error-msg {
+        background: #2a0a0a;
+        border: 1px solid #551111;
+        color: #f87171;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        align-self: center;
+        max-width: 90%;
+      }
+
+      .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+        gap: 12px;
+      }
+
+      .empty-state .icon {
+        font-size: 2rem;
+        opacity: 0.4;
+      }
+
+      .empty-state p {
+        font-size: 0.85rem;
+      }
+
+      .payment-status {
+        font-size: 0.7rem;
+        color: #888;
+        padding: 2px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Secret AI</h1>
+        <div class="subtitle">
+          Confidential inference &middot; Paid per message via x402 &middot;
+          Solana
+        </div>
+      </div>
+      <button class="connect-btn" id="connect-btn">Connect Phantom</button>
+    </header>
+
+    <div class="wallet-panel hidden" id="wallet-panel">
+      <div>
+        <div class="label">Wallet</div>
+        <div class="address" id="wallet-address">--</div>
+      </div>
+      <div>
+        <div class="label">Balance</div>
+        <div class="balance" id="wallet-balance">--</div>
+      </div>
+      <div class="network-badge">solana-mainnet</div>
+    </div>
+
+    <div class="chat-area" id="chat-area">
+      <div class="empty-state" id="empty-state">
+        <div class="icon">&#x1f512;</div>
+        <p>Connect your Phantom wallet to start chatting</p>
+        <p style="font-size: 0.7rem; color: #444">
+          Each message costs ~$0.01 USDC paid via x402
+        </p>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <input
+        type="text"
+        id="msg-input"
+        placeholder="Connect wallet to chat..."
+        autocomplete="off"
+        disabled
+      />
+      <button id="send-btn" disabled>Send</button>
+    </div>
+
+    <!-- Solana web3.js via CDN for transaction building -->
+    <script src="https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.min.js"></script>
+    <script
+      src="https://unpkg.com/@solana/spl-token@0.4.13/lib/cjs/index.js"
+      onerror="console.warn('spl-token CDN failed, using manual ATA derivation')"
+    ></script>
+    <script>
+      // ─── Globals ───
+      const {
+        Connection,
+        PublicKey,
+        TransactionMessage,
+        VersionedTransaction,
+        ComputeBudgetProgram,
+        TransactionInstruction,
+        SystemProgram,
+      } = solanaWeb3;
+
+      const USDC_MINT = new PublicKey(
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      );
+      const TOKEN_PROGRAM_ID = new PublicKey(
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      );
+      const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+        "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+      );
+      const USDC_DECIMALS = 6;
+      const RPC_URL = "https://api.mainnet-beta.solana.com";
+      const connection = new Connection(RPC_URL);
+      const MODEL = "llama3.3:70b";
+
+      let walletPublicKey = null;
+      let previousBalance = null;
+
+      const chatArea = document.getElementById("chat-area");
+      const msgInput = document.getElementById("msg-input");
+      const sendBtn = document.getElementById("send-btn");
+      const connectBtn = document.getElementById("connect-btn");
+      const walletPanel = document.getElementById("wallet-panel");
+      const walletAddr = document.getElementById("wallet-address");
+      const walletBal = document.getElementById("wallet-balance");
+      const emptyState = document.getElementById("empty-state");
+
+      // ─── Phantom Wallet ───
+      function getPhantom() {
+        if (window.solana && window.solana.isPhantom) return window.solana;
+        if (
+          window.phantom &&
+          window.phantom.solana &&
+          window.phantom.solana.isPhantom
+        )
+          return window.phantom.solana;
+        return null;
+      }
+
+      connectBtn.addEventListener("click", async () => {
+        const phantom = getPhantom();
+        if (!phantom) {
+          addError(
+            "Phantom wallet not found. Install it from phantom.app and reload.",
+          );
+          return;
+        }
+
+        try {
+          const resp = await phantom.connect();
+          walletPublicKey = resp.publicKey;
+          onWalletConnected();
+        } catch (err) {
+          addError("Wallet connection rejected: " + err.message);
+        }
+      });
+
+      function onWalletConnected() {
+        const addr = walletPublicKey.toBase58();
+        connectBtn.textContent = addr.slice(0, 4) + ".." + addr.slice(-4);
+        connectBtn.classList.add("connected");
+
+        walletPanel.classList.remove("hidden");
+        walletAddr.textContent = addr.slice(0, 6) + "..." + addr.slice(-4);
+        walletAddr.title = addr;
+
+        msgInput.disabled = false;
+        sendBtn.disabled = false;
+        msgInput.placeholder = "Send a message...";
+        if (emptyState) emptyState.remove();
+
+        refreshBalance();
+      }
+
+      // ─── Balance ───
+      async function getAssociatedTokenAddress(mint, owner) {
+        // Derive PDA: seeds = [owner, TOKEN_PROGRAM_ID, mint]
+        const seeds = [
+          owner.toBuffer(),
+          TOKEN_PROGRAM_ID.toBuffer(),
+          mint.toBuffer(),
+        ];
+        const [address] = PublicKey.findProgramAddressSync(
+          seeds,
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+        return address;
+      }
+
+      async function refreshBalance() {
+        if (!walletPublicKey) return;
+        try {
+          const ata = await getAssociatedTokenAddress(
+            USDC_MINT,
+            walletPublicKey,
+          );
+          const info = await connection.getTokenAccountBalance(ata);
+          const balance = parseFloat(info.value.uiAmountString);
+
+          walletBal.textContent = balance.toFixed(2) + " USDC";
+
+          if (previousBalance !== null && balance < previousBalance) {
+            walletBal.classList.add("flash");
+            setTimeout(() => walletBal.classList.remove("flash"), 1200);
+          }
+          previousBalance = balance;
+        } catch (err) {
+          walletBal.textContent = "0.00 USDC";
+          walletBal.title = err.message;
+        }
+      }
+
+      // ─── x402 Payment Flow ───
+      async function buildPaymentTransaction(requirements) {
+        const extra = requirements.extra || {};
+        const payTo = new PublicKey(requirements.payTo);
+        const amount = Number(requirements.amount);
+        const decimals = extra.decimals ?? USDC_DECIMALS;
+        const recentBlockhash =
+          extra.recentBlockhash ||
+          (await connection.getLatestBlockhash()).blockhash;
+        const tokenProgram = extra.tokenProgram
+          ? new PublicKey(extra.tokenProgram)
+          : TOKEN_PROGRAM_ID;
+        const feePayer = extra.feePayer
+          ? new PublicKey(extra.feePayer)
+          : walletPublicKey;
+
+        const sourceAta = await getAssociatedTokenAddress(
+          USDC_MINT,
+          walletPublicKey,
+        );
+        const destAta = await getAssociatedTokenAddress(USDC_MINT, payTo);
+
+        // Build transferChecked instruction manually
+        // Layout: { instruction: 12, amount: u64, decimals: u8 }
+        const data = Buffer.alloc(10);
+        data.writeUInt8(12, 0); // TransferChecked instruction index
+        data.writeBigUInt64LE(BigInt(amount), 1);
+        data.writeUInt8(decimals, 9);
+
+        const transferIx = new TransactionInstruction({
+          keys: [
+            { pubkey: sourceAta, isSigner: false, isWritable: true },
+            { pubkey: USDC_MINT, isSigner: false, isWritable: false },
+            { pubkey: destAta, isSigner: false, isWritable: true },
+            { pubkey: walletPublicKey, isSigner: true, isWritable: false },
+          ],
+          programId: tokenProgram,
+          data,
+        });
+
+        const instructions = [
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }),
+          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+          transferIx,
+        ];
+
+        const messageV0 = new TransactionMessage({
+          payerKey: feePayer,
+          recentBlockhash,
+          instructions,
+        }).compileToV0Message();
+
+        return new VersionedTransaction(messageV0);
+      }
+
+      function base64Encode(bytes) {
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      async function fetchWithX402(url, options) {
+        // Phase 1: initial request through our proxy
+        let response = await fetch(url, options);
+
+        if (response.status !== 402) return response;
+
+        // Phase 2: parse 402 payment requirements
+        const v2Header = response.headers.get("payment-required");
+        let paymentReq, version;
+
+        if (v2Header) {
+          version = 2;
+          paymentReq = JSON.parse(atob(v2Header));
+        } else {
+          version = 1;
+          paymentReq = await response.json();
+        }
+
+        const accepts = paymentReq.accepts || [];
+        // Find a Solana requirement
+        const req = accepts.find(
+          (r) =>
+            r.scheme === "exact" &&
+            (r.network.startsWith("solana") || r.network.includes("solana")),
+        );
+
+        if (!req) {
+          throw new Error(
+            "No compatible Solana payment option found in 402 response",
+          );
+        }
+
+        // Phase 3: build and sign payment transaction
+        const tx = await buildPaymentTransaction(req);
+        const phantom = getPhantom();
+        const signedTx = await phantom.signTransaction(tx);
+
+        const messageBytes = signedTx.message.serialize();
+        const signatures = signedTx.signatures;
+
+        // Encode as wire format: [compact-array(signatures), message]
+        // Compact array: single byte count (< 128 sigs), then each 64-byte sig
+        const wireLength = 1 + signatures.length * 64 + messageBytes.length;
+        const wire = new Uint8Array(wireLength);
+        wire[0] = signatures.length;
+        let offset = 1;
+        for (const sig of signatures) {
+          wire.set(sig, offset);
+          offset += 64;
+        }
+        wire.set(messageBytes, offset);
+
+        const base64Tx = base64Encode(wire);
+
+        // Phase 4: build payment header
+        let paymentPayload;
+        if (version === 2) {
+          paymentPayload = {
+            x402Version: 2,
+            accepted: req,
+            payload: { transaction: base64Tx },
+            resource: paymentReq.resource,
+          };
+        } else {
+          paymentPayload = {
+            x402Version: 1,
+            scheme: req.scheme,
+            network: req.network,
+            asset: req.asset,
+            payload: { transaction: base64Tx },
+          };
+        }
+
+        const headerValue = btoa(JSON.stringify(paymentPayload));
+        const headerName = version === 2 ? "PAYMENT-SIGNATURE" : "X-PAYMENT";
+
+        // Phase 5: retry with payment header
+        const newHeaders = new Headers(options.headers || {});
+        newHeaders.set(headerName, headerValue);
+
+        return fetch(url, { ...options, headers: newHeaders });
+      }
+
+      // ─── Chat UI ───
+      function addUserMessage(text) {
+        const div = document.createElement("div");
+        div.className = "msg user";
+        div.textContent = text;
+        chatArea.appendChild(div);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function addThinking() {
+        const div = document.createElement("div");
+        div.className = "thinking";
+        div.id = "thinking";
+        div.innerHTML =
+          '<span>Thinking</span><div class="dots"><span>.</span><span>.</span><span>.</span></div>';
+        chatArea.appendChild(div);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function removeThinking() {
+        const el = document.getElementById("thinking");
+        if (el) el.remove();
+      }
+
+      function setPaymentStatus(text) {
+        let el = document.getElementById("payment-status");
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "payment-status";
+          el.id = "payment-status";
+          chatArea.appendChild(el);
+        }
+        el.textContent = text;
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function clearPaymentStatus() {
+        const el = document.getElementById("payment-status");
+        if (el) el.remove();
+      }
+
+      function addAssistantMessage() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg assistant";
+
+        const content = document.createElement("div");
+        content.className = "content";
+        wrapper.appendChild(content);
+
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.style.display = "none";
+        wrapper.appendChild(badge);
+
+        chatArea.appendChild(wrapper);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        return { content, badge };
+      }
+
+      function addError(text) {
+        const div = document.createElement("div");
+        div.className = "error-msg";
+        div.textContent = text;
+        chatArea.appendChild(div);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      async function sendMessage() {
+        const text = msgInput.value.trim();
+        if (!text || !walletPublicKey) return;
+
+        msgInput.value = "";
+        sendBtn.disabled = true;
+        msgInput.disabled = true;
+
+        addUserMessage(text);
+        addThinking();
+
+        try {
+          setPaymentStatus("Requesting inference (awaiting x402 payment)...");
+
+          const response = await fetchWithX402("/proxy/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: MODEL,
+              messages: [{ role: "user", content: text }],
+              stream: true,
+            }),
+          });
+
+          clearPaymentStatus();
+
+          if (!response.ok) {
+            removeThinking();
+            const errText = await response.text();
+            addError("Error " + response.status + ": " + errText);
+            return;
+          }
+
+          removeThinking();
+          const { content, badge } = addAssistantMessage();
+
+          // Determine cost from payment response header
+          const paymentResponse =
+            response.headers.get("payment-response") ||
+            response.headers.get("x-payment-response");
+          let costLabel = "x402 &middot; solana-mainnet";
+          if (paymentResponse) {
+            try {
+              const pr = JSON.parse(atob(paymentResponse));
+              if (pr.amount) {
+                const amt = Number(pr.amount) / 10 ** USDC_DECIMALS;
+                costLabel = amt.toFixed(2) + " USDC &middot; solana-mainnet";
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+
+          // Stream SSE tokens
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let gotContent = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith("data: ")) continue;
+              const data = trimmed.slice(6);
+              if (data === "[DONE]") continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                const delta =
+                  parsed.choices &&
+                  parsed.choices[0] &&
+                  parsed.choices[0].delta;
+                if (delta && delta.content) {
+                  gotContent = true;
+                  content.textContent += delta.content;
+                  chatArea.scrollTop = chatArea.scrollHeight;
+                }
+              } catch {
+                // skip
+              }
+            }
+          }
+
+          if (gotContent) {
+            badge.innerHTML = costLabel;
+            badge.style.display = "inline-block";
+          }
+
+          // Refresh balance after payment
+          setTimeout(refreshBalance, 2000);
+        } catch (err) {
+          clearPaymentStatus();
+          removeThinking();
+          if (err.message && err.message.includes("User rejected")) {
+            addError("Payment cancelled by user");
+          } else {
+            addError("Error: " + err.message);
+          }
+        } finally {
+          sendBtn.disabled = false;
+          msgInput.disabled = false;
+          msgInput.focus();
+        }
+      }
+
+      sendBtn.addEventListener("click", sendMessage);
+      msgInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      // Auto-connect if Phantom is already connected
+      window.addEventListener("load", () => {
+        const phantom = getPhantom();
+        if (phantom && phantom.isConnected && phantom.publicKey) {
+          walletPublicKey = phantom.publicKey;
+          onWalletConnected();
+        }
+      });
+    </script>
+  </body>
+</html>
