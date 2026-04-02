@@ -54,14 +54,6 @@ app.all("/ai/{*path}", async (req, res) => {
   }
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
-  const bodyChunks: Buffer[] = [];
-
-  if (hasBody) {
-    await new Promise<void>((resolve) => {
-      req.on("data", (chunk: Buffer) => bodyChunks.push(chunk));
-      req.on("end", resolve);
-    });
-  }
 
   logger.info(`Proxy ${req.method} /${upstreamPath}`, {
     upstream: upstreamUrl,
@@ -71,7 +63,7 @@ app.all("/ai/{*path}", async (req, res) => {
     const upstream = await fetch(upstreamUrl, {
       method: req.method,
       headers,
-      ...(hasBody ? { body: Buffer.concat(bodyChunks) } : {}),
+      ...(hasBody && req.body ? { body: JSON.stringify(req.body) } : {}),
     });
 
     // Forward status and all headers back to the client
