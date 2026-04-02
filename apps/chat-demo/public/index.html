@@ -345,7 +345,7 @@
         "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
       );
       const USDC_DECIMALS = 6;
-      const RPC_URL = "https://api.mainnet-beta.solana.com";
+      const RPC_URL = "/api/rpc";
       const connection = new Connection(RPC_URL);
       const MODEL = "llama3.3:70b";
 
@@ -674,7 +674,7 @@
         try {
           setPaymentStatus("Requesting inference (awaiting x402 payment)...");
 
-          const response = await fetchWithX402("/proxy/v1/chat/completions", {
+          const response = await fetchWithX402("/relay/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

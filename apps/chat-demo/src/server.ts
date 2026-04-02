@@ -15,10 +15,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.static(path.join(__dirname, "..", "public")));
 
+// --- Solana RPC proxy (avoids browser CORS issues) ---
+app.use(express.json());
+app.post("/api/rpc", async (req, res) => {
+  try {
+    const rpcUrl =
+      process.env["SOLANA_RPC_URL"] ?? "https://api.mainnet-beta.solana.com";
+    const upstream = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    const data = await upstream.text();
+    res.setHeader("Content-Type", "application/json");
+    res.send(data);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("RPC proxy error", { error: message });
+    res.status(502).json({ error: message });
+  }
+});
+
 // --- Proxy to Corbits endpoint ---
 // Forwards all headers (including x402 payment headers) and streams the response.
 // This avoids CORS issues — the browser talks to our backend, which talks to Corbits.
-app.all("/proxy/{*path}", async (req, res) => {
+app.all("/relay/{*path}", async (req, res) => {
   const upstreamPath = req.params.path;
   const upstreamUrl = `${TARGET_URL}/${upstreamPath}`;
 
