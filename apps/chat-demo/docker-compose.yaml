@@ -1,6 +1,6 @@
 services:
   chat-demo:
-    image: ghcr.io/mrgarbonzo/corbitsxsecret-chat-demo:latest
+    image: ghcr.io/mrgarbonzo/corbitsxsecret-test-chat-demo:latest
     ports:
       - "${PORT:-3000}:3000"
     environment:

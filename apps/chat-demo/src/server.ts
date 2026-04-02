@@ -19,7 +19,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 // Forwards all headers (including x402 payment headers) and streams the response.
 // This avoids CORS issues — the browser talks to our backend, which talks to Corbits.
 app.all("/proxy/*", async (req, res) => {
-  const upstreamPath = req.params[0];
+  const upstreamPath = req.url.replace(/^\/proxy\//, "");
   const upstreamUrl = `${TARGET_URL}/${upstreamPath}`;
 
   const headers = new Headers();
