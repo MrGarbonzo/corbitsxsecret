@@ -674,7 +674,7 @@
         try {
           setPaymentStatus("Requesting inference (awaiting x402 payment)...");
 
-          const response = await fetchWithX402("/ai/v1/chat/completions", {
+          const response = await fetchWithX402("/ask/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -39,7 +39,7 @@ app.post("/rpc", async (req, res) => {
 // --- Proxy to Corbits endpoint ---
 // Forwards all headers (including x402 payment headers) and streams the response.
 // This avoids CORS issues — the browser talks to our backend, which talks to Corbits.
-app.all("/ai/{*path}", async (req, res) => {
+app.all("/ask/{*path}", async (req, res) => {
   const upstreamPath = req.params.path;
   const upstreamUrl = `${TARGET_URL}/${upstreamPath}`;
 
