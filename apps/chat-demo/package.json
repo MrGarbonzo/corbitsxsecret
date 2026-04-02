@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/server.ts",
-    "build": "tsc --project tsconfig.build.json && tsc-esm-fix --target dist"
+    "build": "tsc --project tsconfig.build.json"
   },
   "dependencies": {
     "@faremeter/logs": "catalog:",
@@ -14,7 +14,6 @@
     "express": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "tsc-esm-fix": "catalog:"
+    "@types/node": "catalog:"
   }
 }

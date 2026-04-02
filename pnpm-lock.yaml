@@ -117,9 +117,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 20.19.11
-      tsc-esm-fix:
-        specifier: 'catalog:'
-        version: 3.1.2
 
   apps/client-test:
     dependencies:
