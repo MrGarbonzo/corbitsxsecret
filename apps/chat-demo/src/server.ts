@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 
 // --- Solana RPC proxy (avoids browser CORS issues) ---
 app.use(express.json());
-app.post("/api/rpc", async (req, res) => {
+app.post("/rpc", async (req, res) => {
   try {
     const rpcUrl =
       process.env["SOLANA_RPC_URL"] ?? "https://api.mainnet-beta.solana.com";
@@ -39,7 +39,7 @@ app.post("/api/rpc", async (req, res) => {
 // --- Proxy to Corbits endpoint ---
 // Forwards all headers (including x402 payment headers) and streams the response.
 // This avoids CORS issues — the browser talks to our backend, which talks to Corbits.
-app.all("/relay/{*path}", async (req, res) => {
+app.all("/x402/{*path}", async (req, res) => {
   const upstreamPath = req.params.path;
   const upstreamUrl = `${TARGET_URL}/${upstreamPath}`;
 
