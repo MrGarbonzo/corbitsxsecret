@@ -509,9 +509,29 @@
         return btoa(binary);
       }
 
-      async function fetchWithX402(url, options) {
+      // Send a request through the /gw proxy endpoint.
+      // We POST { url, method, headers, body } and the server forwards to Corbits.
+      async function gwFetch(targetPath, method, headers, body) {
+        return fetch("/gw", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: targetPath,
+            method,
+            headers: headers || {},
+            body,
+          }),
+        });
+      }
+
+      async function fetchWithX402(targetPath, chatBody) {
         // Phase 1: initial request through our proxy
-        let response = await fetch(url, options);
+        let response = await gwFetch(
+          targetPath,
+          "POST",
+          { "Content-Type": "application/json" },
+          chatBody,
+        );
 
         if (response.status !== 402) return response;
 
@@ -528,7 +548,6 @@
         }
 
         const accepts = paymentReq.accepts || [];
-        // Find a Solana requirement
         const req = accepts.find(
           (r) =>
             r.scheme === "exact" &&
@@ -549,8 +568,6 @@
         const messageBytes = signedTx.message.serialize();
         const signatures = signedTx.signatures;
 
-        // Encode as wire format: [compact-array(signatures), message]
-        // Compact array: single byte count (< 128 sigs), then each 64-byte sig
         const wireLength = 1 + signatures.length * 64 + messageBytes.length;
         const wire = new Uint8Array(wireLength);
         wire[0] = signatures.length;
@@ -586,10 +603,10 @@
         const headerName = version === 2 ? "PAYMENT-SIGNATURE" : "X-PAYMENT";
 
         // Phase 5: retry with payment header
-        const newHeaders = new Headers(options.headers || {});
-        newHeaders.set(headerName, headerValue);
+        const retryHeaders = { "Content-Type": "application/json" };
+        retryHeaders[headerName] = headerValue;
 
-        return fetch(url, { ...options, headers: newHeaders });
+        return gwFetch(targetPath, "POST", retryHeaders, chatBody);
       }
 
       // ─── Chat UI ───
@@ -674,14 +691,10 @@
         try {
           setPaymentStatus("Requesting inference (awaiting x402 payment)...");
 
-          const response = await fetchWithX402("/ask/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: MODEL,
-              messages: [{ role: "user", content: text }],
-              stream: true,
-            }),
+          const response = await fetchWithX402("/v1/chat/completions", {
+            model: MODEL,
+            messages: [{ role: "user", content: text }],
+            stream: true,
           });
 
           clearPaymentStatus();

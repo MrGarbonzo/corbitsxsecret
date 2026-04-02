@@ -14,9 +14,9 @@ const PORT = Number(process.env["PORT"] ?? "3000");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.json());
 
 // --- Solana RPC proxy (avoids browser CORS issues) ---
-app.use(express.json());
 app.post("/rpc", async (req, res) => {
   try {
     const rpcUrl =
@@ -36,37 +36,44 @@ app.post("/rpc", async (req, res) => {
   }
 });
 
-// --- Proxy to Corbits endpoint ---
-// Forwards all headers (including x402 payment headers) and streams the response.
-// This avoids CORS issues — the browser talks to our backend, which talks to Corbits.
-app.all("/ask/{*path}", async (req, res) => {
-  const upstreamPath = req.params.path;
-  const upstreamUrl = `${TARGET_URL}/${upstreamPath}`;
+// --- Corbits proxy ---
+// Single POST endpoint. The frontend sends { url, method, headers, body }
+// and we forward to Corbits, streaming the response back.
+// This avoids upstream WAF rules that block common API path patterns.
+interface ProxyRequest {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: unknown;
+}
+
+app.post("/gw", async (req, res) => {
+  const { url, method, headers: reqHeaders, body } = req.body as ProxyRequest;
+  if (!url) {
+    res.status(400).json({ error: "url is required" });
+    return;
+  }
+
+  const upstreamUrl = `${TARGET_URL}${url}`;
+  const upstreamMethod = method ?? "POST";
 
   const headers = new Headers();
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (
-      typeof value === "string" &&
-      !["host", "connection"].includes(key.toLowerCase())
-    ) {
+  if (reqHeaders) {
+    for (const [key, value] of Object.entries(reqHeaders)) {
       headers.set(key, value);
     }
   }
 
-  const hasBody = req.method !== "GET" && req.method !== "HEAD";
-
-  logger.info(`Proxy ${req.method} /${upstreamPath}`, {
-    upstream: upstreamUrl,
-  });
+  logger.info(`Proxy ${upstreamMethod} ${url}`, { upstream: upstreamUrl });
 
   try {
     const upstream = await fetch(upstreamUrl, {
-      method: req.method,
+      method: upstreamMethod,
       headers,
-      ...(hasBody && req.body ? { body: JSON.stringify(req.body) } : {}),
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
-    // Forward status and all headers back to the client
+    // Forward status and all response headers
     res.status(upstream.status);
     for (const [key, value] of upstream.headers.entries()) {
       if (!["transfer-encoding", "connection"].includes(key.toLowerCase())) {
@@ -74,7 +81,7 @@ app.all("/ask/{*path}", async (req, res) => {
       }
     }
 
-    // Stream the body
+    // Stream the body back
     if (!upstream.body) {
       res.end();
       return;
