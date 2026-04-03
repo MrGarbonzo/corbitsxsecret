@@ -1,7 +1,7 @@
 # Corbits x Secret Network — Partnership Research Notes
 
 **Last updated:** 2026-04-01  
-**Status:** ✅ DEMO COMPLETE — full end-to-end verified with on-chain payment proof
+**Status:** ✅ REGISTERED ON CORBITS — live at `https://my-test-proxy.garbonzo.api.corbits.dev`
 
 ---
 
@@ -20,9 +20,13 @@
 | **Flex**        | Variable-cost escrow — invited to preview, NOT yet on facilitator |
 | **Faremeter**   | Underlying open-source framework                                  |
 
-### Secret Network subdomain
+### Registration — KEY FINDING
 
-`scrt.api.corbits.dev` — confirmed by Pontus, set up after Secret Labs production deploy
+Corbits registration is **self-service via their website** — no Faremeter middleware needed in the image. Corbits acts as a proxy in front of your endpoint (Path A). The Faremeter backend is built into the Corbits platform, not our image. You just point Corbits at your URL and set a price.
+
+### Secret Network endpoint on Corbits
+
+`https://my-test-proxy.garbonzo.api.corbits.dev` ✅ LIVE
 
 ---
 
@@ -33,7 +37,7 @@
 
 ### Hosted facilitator — `https://facilitator.corbits.dev`
 
-Verified 2026-03-31 — only `exact` scheme present, Flex not yet deployed.
+Verified 2026-03-31 — only `exact` scheme, Flex not yet deployed.
 
 | Scheme | Networks                           | x402 Version |
 | ------ | ---------------------------------- | ------------ |
@@ -46,71 +50,33 @@ Verified 2026-03-31 — only `exact` scheme present, Flex not yet deployed.
 
 ---
 
-## 3. What Was Built
+## 3. What Was Built & Deployed
 
-**Repo:** `https://github.com/MrGarbonzo/corbitsxsecret`  
-**GHCR image:** `ghcr.io/mrgarbonzo/corbitsxsecret:latest`  
-**Demo endpoint:** `https://peach-camel.vm.scrtlabs.com`
+### Path A — Corbits proxy (current, simpler)
 
-### Architecture
+- Registered SecretAI endpoint on Corbits website
+- Corbits proxies in front, handles x402 payment wall
+- No Faremeter middleware needed in our Docker image
+- **Live:** `https://my-test-proxy.garbonzo.api.corbits.dev`
 
-A Faremeter x402 payment gateway (`@faremeter/middleware/hono`) running as a single Docker container on a SecretVM (Intel TDX). Intercepts all `/v1/*` and `/api/*` requests, enforces $0.01 USDC payment on Solana mainnet via `facilitator.corbits.dev`, proxies verified requests to SecretAI with Bearer auth. SSE streaming passed through without buffering. `/health` unprotected.
+### Path B — Native middleware (demo VM, still running)
 
-### Request flow
+- Gateway built from `faremeter-ts-playground`
+- Faremeter middleware runs inside SecretVM
+- **Demo:** `https://peach-camel.vm.scrtlabs.com`
+- Can be shut down — Path A is the active integration
 
-```
-Agent → POST /v1/chat/completions
-  → 402 (USDC terms, solana-mainnet-beta, $0.01)
-  → Agent pays via Faremeter client
-  → facilitator.corbits.dev verifies on-chain
-  → Gateway proxies to SECRETAI_BASE_URL with Bearer token
-  → SecretAI (llama3.3:70b) responds
-  → USDC settles on Solana to receiving wallet
-```
+### Repo
 
-### Full end-to-end demo — ✅ VERIFIED (2026-04-01)
+`https://github.com/MrGarbonzo/corbitsxsecret`  
+`ghcr.io/mrgarbonzo/corbitsxsecret:latest`
 
-```
-1. HEALTH CHECK
-   GET /health → 200 {"status":"ok","timestamp":"2026-04-01T05:22:41.019Z"}
+### Full end-to-end test — ✅ VERIFIED (2026-04-01)
 
-2. PAYMENT WALL
-   POST /v1/models (no payment) → HTTP 402
-
-3. USDC BALANCE (pre-payment)
-   Wallet: Cs8cX73EWAxKQ9iNUpqTZMv5bEfoiSNsHKVsgbz42gZZ
-   Balance: 3.37 USDC
-
-4. PAID INFERENCE
-   Model:    llama3.3:70b
-   Payment:  $0.01 USDC, solana-mainnet-beta, via Corbits facilitator
-   Runtime:  SecretVM (Intel TDX attested)
-   Response: "Hello, it's nice to meet you and I'm looking forward to chatting with you!"
-   Status:   200 OK
-
-5. USDC BALANCE (post-payment)
-   Balance: 3.36 USDC — exactly $0.01 deducted on-chain
-```
-
-**$0.01 moved on Solana. Secret AI responded. Full loop proven.**
-
-### Env vars (injected at boot, never in image)
-
-```
-SECRETAI_BASE_URL=https://secretai-rytn.scrtlabs.com:21434
-SECRET_AI_API_KEY=<key>
-PAYMENT_RECEIVE_ADDRESS=<solana wallet>
-PORT=21434
-```
-
-### TLS
-
-ZeroSSL cert auto-provisioned by SecretVM, valid to 2026-06-30, terminates inside TEE.
-
-### Known cosmetic issues (non-blocking)
-
-- `resource` in 402 shows `http://` — container sees plain HTTP internally, TLS at platform level. Payment flow unaffected.
-- `accepts` array has duplicate entry — easy fix before production.
+- Wallet: `Cs8cX73EWAxKQ9iNUpqTZMv5bEfoiSNsHKVsgbz42gZZ`
+- Balance before: 3.37 USDC → after: 3.36 USDC
+- Model: `llama3.3:70b`
+- Response: "Hello, it's nice to meet you and I'm looking forward to chatting with you!"
 
 ---
 
@@ -127,7 +93,6 @@ ZeroSSL cert auto-provisioned by SecretVM, valid to 2026-06-30, terminates insid
 
 **Invited:** Yes — https://t.me/+yRlfSOV65vxhNzEx  
 **On facilitator:** ❌ Not yet  
-**Obligations:** GitHub feedback + implementation + GTM support  
 **Next:** Ask Pontus for preview facilitator URL
 
 ---
@@ -135,15 +100,15 @@ ZeroSSL cert auto-provisioned by SecretVM, valid to 2026-06-30, terminates insid
 ## Meeting Notes — 2026-03-31
 
 **Attendees:** Pope Black, Alex Zaidelson (SecretLabs), Garbonzo, Pontus Andersson (ABK)  
-**Key confirms:** 70+ live services, Secret has x402 capability, narrative is the missing piece.  
-**Tracks agreed:** Register SecretAI + SecretVM / Agent template / Faremeter PoC
+**Key confirms:** 70+ live services, Secret has x402 capability, narrative is the missing piece.
 
 ---
 
-## Telegram Context
+## Telegram — 2026-04-01
 
-- **3/27 Pontus:** Recommended `faremeter-ts-playground`
-- **3/31 Pontus:** @benwachman_abk (DevRel), @alxndrguy (CTO). Flex invite. `scrt.api.corbits.dev` confirmed.
+- **Garbonzo 1:35 AM:** Shared repo + peach-camel URL with Alex. Suggested labs runs the deployment.
+- **Garbonzo 10:32 AM:** Registered directly on Corbits website (no Faremeter backend needed in image). New URL: `https://my-test-proxy.garbonzo.api.corbits.dev`
+- **Alex 10:40 AM:** "Cool! How can I actually play with it?"
 
 ---
 
@@ -154,18 +119,19 @@ ZeroSSL cert auto-provisioned by SecretVM, valid to 2026-06-30, terminates insid
 | Pontus Andersson | —               | ABK Labs co-founder | pontus@abklabs.com |
 | Ben Wachman      | @benwachman_abk | DevRel              | TBD                |
 | Alex             | @alxndrguy      | CTO                 | TBD                |
+| Alex Zaidelson   | —               | Secret Labs         | alex@scrtlabs.com  |
 
 ---
 
 ## Open Questions
 
-- [x] ~~Full e2e paid inference works?~~ → ✅ $0.01 USDC moved on-chain, Secret AI responded
-- [x] ~~GHCR org?~~ → `ghcr.io/mrgarbonzo/corbitsxsecret`
-- [x] ~~SecretVM running?~~ → ✅ `https://peach-camel.vm.scrtlabs.com`
-- [x] ~~HTTPS/TLS?~~ → ✅ ZeroSSL inside TEE
+- [x] ~~Registration process?~~ → Self-service on Corbits website, Path A proxy, no code needed
+- [x] ~~Full e2e paid inference works?~~ → ✅ $0.01 USDC on-chain, Secret AI responded
+- [x] ~~HTTPS/TLS?~~ → ✅ ZeroSSL inside TEE on peach-camel
+- [x] ~~Corbits marketplace registered?~~ → ✅ `my-test-proxy.garbonzo.api.corbits.dev`
+- [ ] Get `scrt.api.corbits.dev` subdomain from Pontus for production
 - [ ] Flex preview facilitator URL — ask Pontus
-- [ ] Fix duplicate `accepts` entry before production
-- [ ] Corbits platform fee
+- [ ] Secret Labs takes over deployment with permanent URL
 
 ---
 
@@ -174,22 +140,22 @@ ZeroSSL cert auto-provisioned by SecretVM, valid to 2026-06-30, terminates insid
 ### Garbonzo
 
 - [x] Build gateway ✅
-- [x] Push to GHCR ✅
 - [x] Deploy to SecretVM ✅
-- [x] HTTPS live inside TEE ✅
+- [x] HTTPS live ✅
 - [x] Full e2e paid inference verified ✅
-- [x] On-chain payment proof (3.37 → 3.36 USDC) ✅
-- [ ] Brief Alex — share writeup + repo + demo output
-- [ ] Alex approves → message Pontus
+- [x] Registered on Corbits marketplace ✅
+- [ ] Give Alex instructions to test it
+- [ ] Get `scrt.api.corbits.dev` from Pontus
+- [ ] Hand off deployment to Secret Labs
 - [ ] Join Flex preview: https://t.me/+yRlfSOV65vxhNzEx
 
-### Secret Labs (after handoff)
+### Secret Labs
 
-- [ ] Deploy image on Secret Labs infrastructure
-- [ ] Provide production URL to Pontus
+- [ ] Take over deployment with permanent URL
+- [ ] Register that URL on Corbits to replace test proxy
 
 ### Pontus / ABK
 
-- [ ] Set up `scrt.api.corbits.dev` → production URL
+- [ ] Set up `scrt.api.corbits.dev`
 - [ ] Float agent template to Crossmint
 - [ ] Provide Flex preview facilitator endpoint

@@ -7,14 +7,22 @@ import { configureApp, getLogger } from "@faremeter/logs";
 await configureApp({ level: "debug" });
 const logger = await getLogger(["chat-demo"]);
 
-const TARGET_URL =
-  process.env["TARGET_URL"] ?? "https://my-test-proxy.garbonzo.api.corbits.dev";
+const TARGET_URL = process.env["TARGET_URL"];
+if (!TARGET_URL) {
+  logger.error("TARGET_URL environment variable is required");
+  process.exit(1);
+}
 const PORT = Number(process.env["PORT"] ?? "3000");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.static(path.join(__dirname, "..", "public")));
 app.use(express.json());
+
+// --- Health check ---
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // --- Solana RPC proxy (avoids browser CORS issues) ---
 app.post("/rpc", async (req, res) => {

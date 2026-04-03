@@ -1,9 +1,14 @@
 services:
   chat-demo:
-    image: ghcr.io/mrgarbonzo/corbitsxsecret-test-chat-demo:latest
+    image: ghcr.io/mrgarbonzo/corbitsxsecret-chat-demo:latest
     ports:
-      - "80:3000"
+      - "3000:3000"
     environment:
       - PORT=3000
-      - TARGET_URL=${TARGET_URL:-https://my-test-proxy.garbonzo.api.corbits.dev}
+      - TARGET_URL
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -6,6 +6,8 @@ node_modules
 tsconfig.tsbuildinfo
 .tap
 keypairs
+keypair.json
+*.json.key
 .env
 .env-checked
 .eslintcache
