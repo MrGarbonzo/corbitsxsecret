@@ -6,6 +6,7 @@ services:
     environment:
       - PORT=3000
       - TARGET_URL
+      - INFERENCE_VM_ATTEST_URL
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]

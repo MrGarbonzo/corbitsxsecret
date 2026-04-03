@@ -13,6 +13,7 @@ if (!TARGET_URL) {
   process.exit(1);
 }
 const PORT = Number(process.env["PORT"] ?? "3000");
+const INFERENCE_VM_ATTEST_URL = process.env["INFERENCE_VM_ATTEST_URL"];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -22,6 +23,81 @@ app.use(express.json());
 // --- Health check ---
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// --- TDX Attestation ---
+interface AttestationResult {
+  tcbSvn: string;
+  mrseam: string;
+  mrtd: string;
+  rtmr0: string;
+  rtmr1: string;
+  rtmr2: string;
+  rtmr3: string;
+  fetchedAt: string;
+}
+
+let attestationCache: AttestationResult | null = null;
+
+const FIELD_MAP: Record<string, keyof AttestationResult> = {
+  tcb_svn: "tcbSvn",
+  mrseam: "mrseam",
+  mrtd: "mrtd",
+  rtmr0: "rtmr0",
+  rtmr1: "rtmr1",
+  rtmr2: "rtmr2",
+  rtmr3: "rtmr3",
+};
+
+app.get("/api/attestation", async (_req, res) => {
+  if (!INFERENCE_VM_ATTEST_URL) {
+    res.json({ error: "attestation not configured" });
+    return;
+  }
+
+  if (attestationCache) {
+    res.json(attestationCache);
+    return;
+  }
+
+  try {
+    logger.info("Fetching attestation", { url: INFERENCE_VM_ATTEST_URL });
+    const upstream = await fetch(INFERENCE_VM_ATTEST_URL);
+    const html = await upstream.text();
+
+    // Extract content from <pre> tag — the attestation server wraps data in HTML
+    const preMatch = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    const text = preMatch ? preMatch[1] : html;
+
+    const result: Record<string, string> = {};
+    for (const line of text.split("\n")) {
+      const match = line.match(/^(\w+)\s*:\s*(\S+)/);
+      if (!match) continue;
+      const key = FIELD_MAP[match[1].toLowerCase()];
+      if (key) result[key] = match[2].trim();
+    }
+
+    attestationCache = {
+      tcbSvn: result["tcbSvn"] ?? "",
+      mrseam: result["mrseam"] ?? "",
+      mrtd: result["mrtd"] ?? "",
+      rtmr0: result["rtmr0"] ?? "",
+      rtmr1: result["rtmr1"] ?? "",
+      rtmr2: result["rtmr2"] ?? "",
+      rtmr3: result["rtmr3"] ?? "",
+      fetchedAt: new Date().toISOString(),
+    };
+
+    logger.info("Attestation cached", {
+      mrtd: attestationCache.mrtd.slice(0, 16) + "...",
+      rtmr3: attestationCache.rtmr3.slice(0, 16) + "...",
+    });
+    res.json(attestationCache);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Attestation fetch failed", { error: message });
+    res.json({ error: message });
+  }
 });
 
 // --- Solana RPC proxy (avoids browser CORS issues) ---
