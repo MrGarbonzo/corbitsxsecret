@@ -67,14 +67,14 @@ app.get("/api/attestation", async (_req, res) => {
 
     // Extract content from <pre> tag — the attestation server wraps data in HTML
     const preMatch = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-    const text = preMatch ? preMatch[1] : html;
+    const text = preMatch?.[1] ?? html;
 
     const result: Record<string, string> = {};
     for (const line of text.split("\n")) {
-      const match = line.match(/^(\w+)\s*:\s*(\S+)/);
-      if (!match) continue;
-      const key = FIELD_MAP[match[1].toLowerCase()];
-      if (key) result[key] = match[2].trim();
+      const m = line.match(/^(\w+)\s*:\s*(\S+)/);
+      if (!m?.[1] || !m[2]) continue;
+      const key = FIELD_MAP[m[1].toLowerCase()];
+      if (key) result[key] = m[2].trim();
     }
 
     attestationCache = {
