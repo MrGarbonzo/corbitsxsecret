@@ -7,7 +7,6 @@ services:
     environment:
       - SECRETAI_BASE_URL
       - SECRET_AI_API_KEY
-      - PAYMENT_RECEIVE_ADDRESS
       - PORT=21434
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:21434/health"]

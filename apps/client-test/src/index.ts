@@ -24,7 +24,7 @@ try {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama3.3:70b",
+      model: "deepseek-r1:70b",
       messages: [{ role: "user", content: "Say hello in one sentence." }],
     }),
   });
